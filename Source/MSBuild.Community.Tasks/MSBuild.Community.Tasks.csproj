@@ -173,6 +173,7 @@
     <Compile Include="Oracle\TnsEntry.cs" />
     <Compile Include="Oracle\TnsParser.cs" />
     <Compile Include="RoboCopy.cs" />
+    <Compile Include="SmapOne\UpdatePlist.cs" />
     <Compile Include="Sound\Sound.cs" />
     <Compile Include="SourceServer\FileBase.cs" />
     <Compile Include="SourceServer\PdbStr.cs" />
