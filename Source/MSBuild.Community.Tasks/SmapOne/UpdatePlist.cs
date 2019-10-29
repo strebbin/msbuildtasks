@@ -48,54 +48,75 @@ namespace MSBuild.Community.Tasks
             }
 
             var doc = XDocument.Load(PlistPath);
-
-            var plist = doc.Element("plist");
-            if (plist == null)
-            {
-                return false;
-            }
-
             try
             {
-                var keys = plist.Descendants("key").ToList();
-
-                var bundleShortVersion = GetValueElement(keys, "CFBundleShortVersionString");
-                bundleShortVersion.Value = BundleShortVersionString;
-
-                var bundleVersion = GetValueElement(keys, "CFBundleVersion");
-                bundleVersion.Value = BundleVersion;
-
-                if (!VersionOnly)
-                {
-                    var bundleDisplayName = GetValueElement(keys, "CFBundleDisplayName");
-                    bundleDisplayName.Value = BundleDisplayName;
-
-                    var bundleIdentifier = GetValueElement(keys, "CFBundleIdentifier");
-                    bundleIdentifier.Value = BundleIdentifier;
-
-                    var bundleUrlName = GetValueElement(keys, "CFBundleURLName");
-                    bundleUrlName.Value = BundleURLName;
-
-                    var urlScheme = GetValueElement(keys, "CFBundleURLSchemes");
-                    var urlString = urlScheme.Elements().First();
-                    urlString.Value = Protocol;
-                }
-
-                doc.Save(PlistPath);
-                return true;
+                doc = ModifyPlistXml(doc);
             }
-            catch (System.NullReferenceException e)
+            catch (NullReferenceException e)
             {
                 Log.LogError($"NullRef: {e.Message}, data {e.Data}.  Trace: {e.StackTrace}");
                 return false;
             }
+            catch (Exception e)
+            {
+                // TODO make this a `PListModifyException`
+                Log.LogError($"Got an exception: {e.Message}");
+                return false;
+            }
+            doc.Save(PlistPath);
+
+            return true;
         }
 
+        /// <summary>
+        /// Modifies the PList xml file by setting certain values.
+        /// </summary>
+        /// <param name="doc">The plist xml document.  This is going to be modified as a side effect.</param>
+        /// <returns>The modified plist xml document</returns>
+        /// <exception cref="Exception"></exception>
+        // ReSharper disable once MemberCanBePrivate.Global
+        public XDocument ModifyPlistXml(XDocument doc)
+        {
+            var plist = doc.Element("plist");
+            if (plist == null)
+            {
+                throw new Exception("No plist tag!");
+            }
+
+            var keys = plist.Descendants("key").ToList();
+
+            var bundleShortVersion = GetValueElement(keys, "CFBundleShortVersionString");
+            bundleShortVersion.Value = BundleShortVersionString;
+
+            var bundleVersion = GetValueElement(keys, "CFBundleVersion");
+            bundleVersion.Value = BundleVersion;
+
+            if (!VersionOnly)
+            {
+                var bundleDisplayName = GetValueElement(keys, "CFBundleDisplayName");
+                bundleDisplayName.Value = BundleDisplayName;
+
+                var bundleIdentifier = GetValueElement(keys, "CFBundleIdentifier");
+                bundleIdentifier.Value = BundleIdentifier;
+
+                var bundleUrlName = GetValueElement(keys, "CFBundleURLName");
+                bundleUrlName.Value = BundleURLName;
+
+                var urlScheme = GetValueElement(keys, "CFBundleURLSchemes");
+                var urlString = urlScheme.Elements().First();
+                urlString.Value = Protocol;
+            }
+
+            return doc;
+        }
+
+        /// <exception cref="Exception"></exception>
         private static XElement GetValueElement(List<XElement> keys, string key)
         {
             var nextNode = keys.Single(k => k.Value == key).NextNode as XElement;
             if (nextNode == null)
             {
+                // TODO introduce PlistParsingException
                 throw new Exception($"Could not find value element for key '{key}' in plist file");
             }
 
