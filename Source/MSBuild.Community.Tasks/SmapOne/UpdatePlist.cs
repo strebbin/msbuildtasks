@@ -5,6 +5,8 @@
 //-----------------------------------------------------------------------
 
 
+using System;
+using System.Collections.Generic;
 using System.Linq;
 using System.Xml.Linq;
 
@@ -57,24 +59,24 @@ namespace MSBuild.Community.Tasks
             {
                 var keys = plist.Descendants("key").ToList();
 
-                var bundleShortVersion = keys.Single(k => k.Value == "CFBundleShortVersionString").NextNode as XElement;
+                var bundleShortVersion = GetValueElement(keys, "CFBundleShortVersionString");
                 bundleShortVersion.Value = BundleShortVersionString;
 
-                var bundleVersion = keys.Single(k => k.Value == "CFBundleVersion").NextNode as XElement;
+                var bundleVersion = GetValueElement(keys, "CFBundleVersion");
                 bundleVersion.Value = BundleVersion;
 
                 if (!VersionOnly)
                 {
-                    var bundleDisplayName = keys.Single(k => k.Value == "CFBundleDisplayName").NextNode as XElement;
+                    var bundleDisplayName = GetValueElement(keys, "CFBundleDisplayName");
                     bundleDisplayName.Value = BundleDisplayName;
 
-                    var bundleIdentifier = keys.Single(k => k.Value == "CFBundleIdentifier").NextNode as XElement;
+                    var bundleIdentifier = GetValueElement(keys, "CFBundleIdentifier");
                     bundleIdentifier.Value = BundleIdentifier;
 
-                    var bundleUrlName = keys.Single(k => k.Value == "CFBundleURLName").NextNode as XElement;
+                    var bundleUrlName = GetValueElement(keys, "CFBundleURLName");
                     bundleUrlName.Value = BundleURLName;
 
-                    var urlScheme = keys.Single(k => k.Value == "CFBundleURLSchemes").NextNode as XElement;
+                    var urlScheme = GetValueElement(keys, "CFBundleURLSchemes");
                     var urlString = urlScheme.Elements().First();
                     urlString.Value = Protocol;
                 }
@@ -82,10 +84,22 @@ namespace MSBuild.Community.Tasks
                 doc.Save(PlistPath);
                 return true;
             }
-            catch (System.NullReferenceException)
+            catch (System.NullReferenceException e)
             {
+                Log.LogError($"NullRef: {e.Message}, data {e.Data}.  Trace: {e.StackTrace}");
                 return false;
             }
+        }
+
+        private static XElement GetValueElement(List<XElement> keys, string key)
+        {
+            var nextNode = keys.Single(k => k.Value == key).NextNode as XElement;
+            if (nextNode == null)
+            {
+                throw new Exception($"Could not find value element for key '{key}' in plist file");
+            }
+
+            return nextNode;
         }
 
 	    #endregion Task overrides
