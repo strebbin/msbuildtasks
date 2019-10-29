@@ -77,13 +77,7 @@ namespace MSBuild.Community.Tasks
         // ReSharper disable once MemberCanBePrivate.Global
         public XDocument ModifyPlistXml(XDocument doc)
         {
-            var plist = doc.Element("plist");
-            if (plist == null)
-            {
-                throw new Exception("No plist tag!");
-            }
-
-            var keys = plist.Descendants("key").ToList();
+            var keys = KeysFromPlistDoc(doc);
 
             var bundleShortVersion = GetValueElement(keys, "CFBundleShortVersionString");
             bundleShortVersion.Value = BundleShortVersionString;
@@ -110,17 +104,32 @@ namespace MSBuild.Community.Tasks
             return doc;
         }
 
-        /// <exception cref="Exception"></exception>
-        private static XElement GetValueElement(List<XElement> keys, string key)
+        internal static List<XElement> KeysFromPlistDoc(XDocument doc)
         {
-            var nextNode = keys.Single(k => k.Value == key).NextNode as XElement;
-            if (nextNode == null)
+            var plist = doc.Element("plist");
+            if (plist == null)
             {
-                // TODO introduce PlistParsingException
-                throw new Exception($"Could not find value element for key '{key}' in plist file");
+                throw new Exception("No plist tag!");
             }
 
-            return nextNode;
+            return plist.Descendants("key").ToList();
+        }
+
+        /// <exception cref="Exception"></exception>
+        internal static XElement GetValueElement(List<XElement> keys, string key)
+        {
+            var keyNode = keys.Single(k => k.Value == key);
+            var nextNodes = keyNode.NodesAfterSelf().TakeWhile(el => !(el is XElement xel && xel.Name == "key"));
+            // We don't cover
+            try
+            {
+                // Comments are not `XElement`s because they e.g. have no names
+                return nextNodes.OfType<XElement>().First();
+            }
+            catch (InvalidOperationException)  // when there is nothing for `First()`
+            {
+                throw new Exception($"Could not find value element for key '{key}' in plist file");
+            }
         }
 
 	    #endregion Task overrides
