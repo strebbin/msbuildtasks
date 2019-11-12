@@ -5,6 +5,8 @@
 //-----------------------------------------------------------------------
 
 
+using System;
+using System.Collections.Generic;
 using System.Linq;
 using System.Xml.Linq;
 
@@ -46,45 +48,87 @@ namespace MSBuild.Community.Tasks
             }
 
             var doc = XDocument.Load(PlistPath);
+            try
+            {
+                doc = ModifyPlistXml(doc);
+            }
+            catch (NullReferenceException e)
+            {
+                Log.LogError($"NullRef: {e.Message}, data {e.Data}.  Trace: {e.StackTrace}");
+                return false;
+            }
+            catch (Exception e)
+            {
+                // TODO make this a `PListModifyException`
+                Log.LogError($"Got an exception: {e.Message}");
+                return false;
+            }
+            doc.Save(PlistPath);
 
+            return true;
+        }
+
+        /// <summary>
+        /// Modifies the PList xml file by setting certain values.
+        /// </summary>
+        /// <param name="doc">The plist xml document.  This is going to be modified as a side effect.</param>
+        /// <returns>The modified plist xml document</returns>
+        /// <exception cref="Exception"></exception>
+        // ReSharper disable once MemberCanBePrivate.Global
+        public XDocument ModifyPlistXml(XDocument doc)
+        {
+            var keys = KeysFromPlistDoc(doc);
+
+            var bundleShortVersion = GetValueElement(keys, "CFBundleShortVersionString");
+            bundleShortVersion.Value = BundleShortVersionString;
+
+            var bundleVersion = GetValueElement(keys, "CFBundleVersion");
+            bundleVersion.Value = BundleVersion;
+
+            if (!VersionOnly)
+            {
+                var bundleDisplayName = GetValueElement(keys, "CFBundleDisplayName");
+                bundleDisplayName.Value = BundleDisplayName;
+
+                var bundleIdentifier = GetValueElement(keys, "CFBundleIdentifier");
+                bundleIdentifier.Value = BundleIdentifier;
+
+                var bundleUrlName = GetValueElement(keys, "CFBundleURLName");
+                bundleUrlName.Value = BundleURLName;
+
+                var urlScheme = GetValueElement(keys, "CFBundleURLSchemes");
+                var urlString = urlScheme.Elements().First();
+                urlString.Value = Protocol;
+            }
+
+            return doc;
+        }
+
+        internal static List<XElement> KeysFromPlistDoc(XDocument doc)
+        {
             var plist = doc.Element("plist");
             if (plist == null)
             {
-                return false;
+                throw new Exception("No plist tag!");
             }
 
+            return plist.Descendants("key").ToList();
+        }
+
+        /// <exception cref="Exception"></exception>
+        internal static XElement GetValueElement(List<XElement> keys, string key)
+        {
+            var keyNode = keys.Single(k => k.Value == key);
+            var nextNodes = keyNode.NodesAfterSelf().TakeWhile(el => !(el is XElement xel && xel.Name == "key"));
+            // We don't cover
             try
             {
-                var keys = plist.Descendants("key").ToList();
-
-                var bundleShortVersion = keys.Single(k => k.Value == "CFBundleShortVersionString").NextNode as XElement;
-                bundleShortVersion.Value = BundleShortVersionString;
-
-                var bundleVersion = keys.Single(k => k.Value == "CFBundleVersion").NextNode as XElement;
-                bundleVersion.Value = BundleVersion;
-
-                if (!VersionOnly)
-                {
-                    var bundleDisplayName = keys.Single(k => k.Value == "CFBundleDisplayName").NextNode as XElement;
-                    bundleDisplayName.Value = BundleDisplayName;
-
-                    var bundleIdentifier = keys.Single(k => k.Value == "CFBundleIdentifier").NextNode as XElement;
-                    bundleIdentifier.Value = BundleIdentifier;
-
-                    var bundleUrlName = keys.Single(k => k.Value == "CFBundleURLName").NextNode as XElement;
-                    bundleUrlName.Value = BundleURLName;
-
-                    var urlScheme = keys.Single(k => k.Value == "CFBundleURLSchemes").NextNode as XElement;
-                    var urlString = urlScheme.Elements().First();
-                    urlString.Value = Protocol;
-                }
-
-                doc.Save(PlistPath);
-                return true;
+                // Comments are not `XElement`s because they e.g. have no names
+                return nextNodes.OfType<XElement>().First();
             }
-            catch (System.NullReferenceException)
+            catch (InvalidOperationException)  // when there is nothing for `First()`
             {
-                return false;
+                throw new Exception($"Could not find value element for key '{key}' in plist file");
             }
         }
 

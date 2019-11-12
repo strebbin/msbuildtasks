@@ -63,6 +63,7 @@
     <Reference Include="System.ServiceProcess" />
     <Reference Include="System.Windows.Forms" />
     <Reference Include="System.Xml" />
+    <Reference Include="System.Xml.Linq" />
   </ItemGroup>
   <ItemGroup>
     <Compile Include="AspNet\InstallAspNetTest.cs" />
@@ -126,6 +127,8 @@
     <Compile Include="TemplateFile\TemplateFileTest.cs" />
     <Compile Include="Tfs\InfoCommandResponseTest.cs" />
     <Compile Include="Time\TimeTest.cs" />
+    <Compile Include="UpdatePlistTest.cs" />
+    <Compile Include="UpdatePlistTest.DebugPlist.cs" />
     <Compile Include="User\UserTest.cs" />
     <Compile Include="WebDownloadTest.cs" />
     <Compile Include="XmlUpdateTest.cs" />
